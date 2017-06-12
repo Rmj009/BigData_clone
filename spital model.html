@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>W-PCA Scatterplot Chart</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="WPCA scatter plot">
+    <meta name="author" content="Michal Škop">
+	
+    <script src="http://d3js.org/d3.v3.min.js"></script>
+    <script src="./d3.scatterplotwithlineplot.js"></script>
+    <script src="./d3.tips.js"></script>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootswatch/3.3.5/united/bootstrap.min.css">
+
+    <style type="text/css">
+			
+			/* note: we duplicate some of the styles (css, and as attributes of svg elements), so FF displays it correctly, and it is possible to generate png */
+			.tick {
+			  fill-opacity: 0;
+			  stroke: #000000;
+			  stroke-width: 1;
+			}
+			
+			.domain {
+			    fill: none;
+				fill-opacity: 0;
+				stroke: black;
+				stroke-width: 1;
+			}
+			.axis line {
+				fill: none;
+				fill-opacity: 0;
+				stroke: black;
+				stroke-width: 1;
+				shape-rendering: crispEdges;
+			}
+			
+			.axis text {
+				font-family: sans-serif;
+				font-size: 11px;
+				stroke: gray;
+			}
+			circle:hover {
+			  fill-opacity: 1;
+			}
+			.label {
+			  font-family: sans-serif;
+			  font-size: 15px;
+			}
+
+			.d3-tip {
+                line-height: 1;
+                font-weight: bold;
+                padding: 12px;
+                background: rgba(0, 0, 0, 0.8);
+                color: #fff;
+                border-radius: 2px;
+                pointer-events: none;
+                max-width: 400px;
+            }
+            /* Creates a small triangle extender for the tooltip */
+            .d3-tip:after {
+                box-sizing: border-box;
+                display: inline;
+                font-size: 10px;
+                width: 100%;
+                line-height: 1;
+                color: rgba(0, 0, 0, 0.8);
+                position: absolute;
+                pointer-events: none;
+            }
+            /* Northward tooltips */
+            .d3-tip:after {
+                content: "\25BC";
+                margin: -1px 0 0 0;
+                top: 100%;
+                left: 0;
+                text-align: center;
+            }
+            line {
+             stroke:gray;
+             stroke-width:0;
+             opacity: .3;
+            }
+            .perfect {
+              stroke: gray;
+              stroke-width:0;
+              opacity: 0.7;
+            }
+            #chart {
+              margin-top:30px;
+            }
+		</style>
+  </head>
+  <body>
+    <nav class="navbar navbar-default">
+      <div class="container">
+        <div class="navbar-header">
+          <h2>Spatial distribution of Czech senate candidates and political parties based on their answers in VAA <a href="http://volebnikalkulacka.cz" class="text-success">VolebniKalkulacka.cz</a> before elections 2012-2014</h2>
+        </div>
+      </div>
+    </nav>
+    <div id="chart"></div>
+    <div class="alert alert-info">
+      <p>Each small solid bubble represents one senate candidate.
+      <p>Each empty bubble represents one political party, the size represents election result.
+      <p><a href="http://bl.ocks.org/michalskop/8514867">W-PCA</a> model is used, the model is estimated using 10 biggest parties, the other parties and the senate candidates were projected into the model.
+      <p>Other charts are c1.html, c2.html, c3.html, c4.html, c5.html, c6.html
+
+    
+<script type="text/javascript">
+
+d3.csv("all_data_ten_4.csv", function(voters) {
+    d3.csv("cutting_lines_ten.csv", function(lines) {
+        linesselected = [];
+        for (k in lines) {
+          if ((parseFloat(lines[k]['loss']) < 1.5) && (parseFloat(lines[k]['cl_beta0']) < 50)) {
+              beta = [lines[k]['normal_x'],lines[k]['normal_y']];
+              beta0 = lines[k]['cl_beta0'];
+              if (beta[1] != 0) {
+                lines[k]['a'] = -beta0/beta[1];
+                lines[k]['b'] = -beta[0]/beta[1];
+              } else {
+                lines[k]['a'] = 0;
+                lines[k]['b'] = 0;
+              }
+              //add class for a perfect cut:
+              if (lines[k]['loss'] == 0) {
+                lines[k]['class'] = 'perfect';
+              } else {
+                lines[k]['class'] = 'non-perfect';
+              }
+              lines[k]['name'] = lines[k]["motion:name"];
+              linesselected.push(lines[k]);
+          }
+        }
+
+        spdata = [];
+        voters.forEach(function(d) {
+          spdata.push({"x":d["wpca:d1"],"y":d["wpca:d2"],"r":d["r"],"color":d["color"],"name":d["name"],"opacity":d["opacity"]})
+        });
+        var scatterplotwithlineplot = [{
+          "data": spdata,
+          "margin": {top: 10, right: 10, bottom: 30, left: 30},
+          "axes": {"labels":{"x":"DIM 1", "y":"DIM 2"}},
+          "minmax":{"x":{'min':-1,'max':1},"y":{'min':-1,'max':1},"r":{'min':0,'max':1},"rrange":{'min':0,'max':100}},
+          "size":{"width":500,"height":500},
+          "lines": linesselected
+        }];
+
+         var svg = d3.select("#chart")
+            .append("svg")
+            .attr("width",scatterplotwithlineplot[0]['size']['width'])
+            .attr("height",scatterplotwithlineplot[0]['size']['height']);
+            
+        /* Initialize tooltip */
+        tip = d3.tip().attr('class', 'd3-tip').html(function(d) { 
+          return "<span class=\'stronger\'>" + d["name"] + "</span><br>";
+        });
+
+        /* Invoke the tip in the context of your visualization */
+        svg.call(tip)
+
+        var sp = d3.scatterplotwithlineplot()
+            .data(function(d) {return d.data})
+            .margin(function(d) {return d.margin})
+            .axes(function(d) {return d.axes})
+            .minmax(function(d) {return d.minmax})
+            .size(function(d) {return d.size})
+            .lines(function(d) {return d.lines})
+
+        var scatter = svg.selectAll(".scatterplot")
+            .data(scatterplotwithlineplot)
+          .enter()
+            .append("svg:g")
+            .attr("transform", "translate(" + scatterplotwithlineplot[0].margin.left + "," + scatterplotwithlineplot[0].margin.top + ")")
+            .call(sp);
+    })
+})
+</script>
+  </body>
+</html>
